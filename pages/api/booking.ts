@@ -17,18 +17,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization")
 
   if (req.method === "OPTIONS") {
-    res.status(200).end()
-    return
+    return res.status(200).end()
   }
 
   const { method } = req
 
   if (method === "POST") {
     const { user_name, email, phone, store_id, visit_date, visit_time, request_note } = req.body
+
     if (!user_name || !email || !phone || !store_id || !visit_date || !visit_time) {
       return res.status(400).json({ error: "Missing required fields" })
     }
 
+    // 🔸 1. Supabase에 예약 저장
     const insertRes = await fetch(`${supabaseUrl}/rest/v1/bookings`, {
       method: "POST",
       headers: {
@@ -43,27 +44,36 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     })
 
     const data = await insertRes.json()
-    if (!insertRes.ok) return res.status(500).json({ message: "Failed to insert booking", detail: data })
 
-    // ✅ Google Sheets로 전송
+    if (!insertRes.ok) {
+      return res.status(500).json({ message: "Failed to insert booking", detail: data })
+    }
+
+    // 🔸 2. Google 스프레드시트에 예약 전송
     try {
-      await fetch("https://script.google.com/macros/s/AKfycbyQtVuRpPasZiHKG-8ZSOqQbglFNqW1nb2tLDXWd2Ym3DtElXbGQcdub9jNkFK8uz4KHA/exec", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          user_name,
-          email,
-          phone,
-          visit_date,
-          visit_time,
-          request_note,
-          store_id,
-        }),
-      })
+      const googleResponse = await fetch(
+        "https://script.google.com/macros/s/AKfycbyQtVuRpPasZiHKG-8ZSOqQbglFNqW1nb2tLDXWd2Ym3DtElXbGQcdub9jNkFK8uz4KHA/exec",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            user_name,
+            email,
+            phone,
+            visit_date,
+            visit_time,
+            request_note,
+            store_id,
+          }),
+        }
+      )
+
+      const googleResult = await googleResponse.text()
+      console.log("✅ Google Sheets response:", googleResult)
     } catch (err) {
-      console.error("❌ Google Sheets 연동 실패:", err)
+      console.error("❌ Google Sheets 전송 실패:", err)
     }
 
     return res.status(200).json({ success: true, data })
