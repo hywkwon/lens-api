@@ -51,27 +51,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // 🔸 2. Google 스프레드시트에 예약 전송
     try {
-      const googleResponse = await fetch(
-        "https://script.google.com/macros/s/AKfycbyQtVuRpPasZiHKG-8ZSOqQbglFNqW1nb2tLDXWd2Ym3DtElXbGQcdub9jNkFK8uz4KHA/exec",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            user_name,
-            email,
-            phone,
-            visit_date,
-            visit_time,
-            request_note,
-            store_id,
-          }),
-        }
-      )
+      const sheetRes = await fetch("https://script.google.com/macros/s/AKfycbyQtVuRpPasZiHKG-8ZSOqQbglFNqW1nb2tLDXWd2Ym3DtElXbGQcdub9jNkFK8uz4KHA/exec", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          user_name,
+          email,
+          phone,
+          visit_date,
+          visit_time,
+          request_note,
+          store_id,
+        }),
+      })
 
-      const googleResult = await googleResponse.text()
-      console.log("✅ Google Sheets response:", googleResult)
+      const sheetText = await sheetRes.text()
+      console.log("✅ Google Sheets response:", sheetText)
     } catch (err) {
       console.error("❌ Google Sheets 전송 실패:", err)
     }
