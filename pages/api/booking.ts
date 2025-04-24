@@ -1,3 +1,4 @@
+// 📁 pages/api/booking.ts
 import { NextApiRequest, NextApiResponse } from "next"
 
 export const config = {
@@ -9,7 +10,6 @@ export const config = {
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
-const GOOGLE_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbyQtVuRpPasZiHKG-8ZSOqQbglFNqW1nb2tLDXWd2Ym3DtElXbGQcdub9jNkFK8uz4KHA/exec"
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   res.setHeader("Access-Control-Allow-Origin", "*")
@@ -22,6 +22,52 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   const { method } = req
+
+  if (method === "POST") {
+    const { user_name, email, phone, store_id, visit_date, visit_time, request_note } = req.body
+    if (!user_name || !email || !phone || !store_id || !visit_date || !visit_time) {
+      return res.status(400).json({ error: "Missing required fields" })
+    }
+
+    const insertRes = await fetch(`${supabaseUrl}/rest/v1/bookings`, {
+      method: "POST",
+      headers: {
+        apikey: supabaseKey,
+        Authorization: `Bearer ${supabaseKey}`,
+        "Content-Type": "application/json",
+        Prefer: "return=representation",
+      },
+      body: JSON.stringify([
+        { user_name, email, phone, store_id, visit_date, visit_time, request_note },
+      ]),
+    })
+
+    const data = await insertRes.json()
+    if (!insertRes.ok) return res.status(500).json({ message: "Failed to insert booking", detail: data })
+
+    // ✅ Google Sheets로 전송
+    try {
+      await fetch("https://script.google.com/macros/s/AKfycbyQtVuRpPasZiHKG-8ZSOqQbglFNqW1nb2tLDXWd2Ym3DtElXbGQcdub9jNkFK8uz4KHA/exec", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          user_name,
+          email,
+          phone,
+          visit_date,
+          visit_time,
+          request_note,
+          store_id,
+        }),
+      })
+    } catch (err) {
+      console.error("❌ Google Sheets 연동 실패:", err)
+    }
+
+    return res.status(200).json({ success: true, data })
+  }
 
   if (method === "GET") {
     const email = req.query.email as string
@@ -38,45 +84,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!fetchRes.ok) return res.status(500).json({ message: "Failed to fetch bookings" })
 
     return res.status(200).json({ data })
-  }
-
-  if (method === "POST") {
-    const { user_name, email, phone, store_id, visit_date, visit_time, request_note } = req.body
-
-    if (!user_name || !email || !phone || !store_id || !visit_date || !visit_time) {
-      return res.status(400).json({ message: "Missing required fields" })
-    }
-
-    const supabaseRes = await fetch(`${supabaseUrl}/rest/v1/bookings`, {
-      method: "POST",
-      headers: {
-        apikey: supabaseKey,
-        Authorization: `Bearer ${supabaseKey}`,
-        "Content-Type": "application/json",
-        Prefer: "return=representation",
-      },
-      body: JSON.stringify([
-        { user_name, email, phone, store_id, visit_date, visit_time, request_note },
-      ]),
-    })
-
-    const supabaseData = await supabaseRes.json()
-    if (!supabaseRes.ok) {
-      return res.status(500).json({ message: "Failed to insert into Supabase" })
-    }
-
-    // ✨ Google Spreadsheet Webhook 호출
-    try {
-      await fetch(GOOGLE_WEBHOOK_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user_name, email, phone, visit_date, visit_time, request_note, store_id }),
-      })
-    } catch (e) {
-      console.error("Failed to sync to Google Sheets", e)
-    }
-
-    return res.status(200).json({ success: true, data: supabaseData })
   }
 
   if (method === "DELETE") {
