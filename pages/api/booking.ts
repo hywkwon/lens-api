@@ -45,6 +45,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const data = await insertRes.json()
 
     if (!insertRes.ok) {
+      console.error("❌ Failed to insert booking:", data)
       return res.status(500).json({ message: "Failed to insert booking", detail: data })
     }
 
@@ -75,7 +76,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     })
 
     const data = await fetchRes.json()
-    if (!fetchRes.ok) return res.status(500).json({ message: "Failed to fetch bookings" })
+    if (!fetchRes.ok) {
+      console.error("❌ Failed to fetch bookings:", data)
+      return res.status(500).json({ message: "Failed to fetch bookings" })
+    }
 
     return res.status(200).json({ data })
   }
@@ -94,11 +98,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       },
     })
 
+    const detail = await deleteRes.text()
+
     if (!deleteRes.ok) {
-      const detail = await deleteRes.text()
+      console.error("❌ Supabase DELETE failed:", detail)
       return res.status(500).json({ message: "Failed to cancel booking", detail })
     }
 
+    console.log("✅ Supabase DELETE success for ID:", id)
     return res.status(200).json({ message: "Cancelled" })
   }
 
