@@ -52,13 +52,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // Google Sheets로 전송
     try {
-      const sheetRes = await fetch("https://script.google.com/macros/s/AKfycbyQtVuRpPasZiHKG-8ZSOqQbglFNqW1nb2tLDXWd2Ym3DtElXbGQcdub9jNkFK8uz4KHA/exec", {
+      await fetch("https://script.google.com/macros/s/AKfycbyQtVuRpPasZiHKG-8ZSOqQbglFNqW1nb2tLDXWd2Ym3DtElXbGQcdub9jNkFK8uz4KHA/exec", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ user_name, email, phone, visit_date, visit_time, request_note, store_id }),
       })
-      const sheetText = await sheetRes.text()
-      console.log("✅ Google Sheets response:", sheetText)
     } catch (err) {
       console.error("❌ Google Sheets 전송 실패:", err)
     }
@@ -92,8 +90,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const { id } = req.body
     if (!id) return res.status(400).json({ message: "ID is required" })
 
-   const encodedId = encodeURIComponent(`"${id}"`)
-    const deleteRes = await fetch(`${supabaseUrl}/rest/v1/bookings?id=eq.${encodedId}`, {
+    const deleteRes = await fetch(`${supabaseUrl}/rest/v1/bookings?id=eq.${id}`, {
       method: "DELETE",
       headers: {
         apikey: supabaseKey,
