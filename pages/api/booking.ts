@@ -92,9 +92,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const { id } = req.body
     if (!id) return res.status(400).json({ message: "ID is required" })
 
-    const encodedId = encodeURIComponent(`"${id}"`) // 따옴표 포함 후 인코딩
-
-    const deleteRes = await fetch(`${supabaseUrl}/rest/v1/bookings?id=eq.${encodedId}`, {
+    const deleteRes = await fetch(`${supabaseUrl}/rest/v1/bookings?id=eq.${id}`, {
       method: "DELETE",
       headers: {
         apikey: supabaseKey,
