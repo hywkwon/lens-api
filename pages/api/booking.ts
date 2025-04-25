@@ -88,7 +88,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const { id } = req.body
     if (!id) return res.status(400).json({ message: "ID is required" })
 
-    const deleteRes = await fetch(`${supabaseUrl}/rest/v1/bookings?id=eq.${id}`, {
+    const deleteRes = await fetch(`${supabaseUrl}/rest/v1/bookings?uuid=eq.${id}`, {
       method: "DELETE",
       headers: {
         apikey: supabaseKey,
