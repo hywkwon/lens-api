@@ -29,12 +29,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ error: "Missing required fields" })
     }
 
-    // 🔸 1. Supabase에 예약 저장
-    const insertRes = await fetch(${supabaseUrl}/rest/v1/bookings, {
+    const insertRes = await fetch(`${supabaseUrl}/rest/v1/bookings`, {
       method: "POST",
       headers: {
         apikey: supabaseKey,
-        Authorization: Bearer ${supabaseKey},
+        Authorization: `Bearer ${supabaseKey}`,
         "Content-Type": "application/json",
         Prefer: "return=representation",
       },
@@ -49,24 +48,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(500).json({ message: "Failed to insert booking", detail: data })
     }
 
-    // 🔸 2. Google 스프레드시트에 예약 전송
     try {
       const sheetRes = await fetch("https://script.google.com/macros/s/AKfycbyQtVuRpPasZiHKG-8ZSOqQbglFNqW1nb2tLDXWd2Ym3DtElXbGQcdub9jNkFK8uz4KHA/exec", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          user_name,
-          email,
-          phone,
-          visit_date,
-          visit_time,
-          request_note,
-          store_id,
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_name, email, phone, visit_date, visit_time, request_note, store_id }),
       })
-
       const sheetText = await sheetRes.text()
       console.log("✅ Google Sheets response:", sheetText)
     } catch (err) {
@@ -80,10 +67,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const email = req.query.email as string
     if (!email) return res.status(400).json({ message: "Email is required" })
 
-    const fetchRes = await fetch(${supabaseUrl}/rest/v1/bookings?email=eq.${email}, {
+    const fetchRes = await fetch(`${supabaseUrl}/rest/v1/bookings?email=eq.${email}`, {
       headers: {
         apikey: supabaseKey,
-        Authorization: Bearer ${supabaseKey},
+        Authorization: `Bearer ${supabaseKey}`,
       },
     })
 
@@ -97,17 +84,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const { id } = req.body
     if (!id) return res.status(400).json({ message: "ID is required" })
 
-    const deleteRes = await fetch(${supabaseUrl}/rest/v1/bookings?id=eq.${id}, {
+    const deleteRes = await fetch(`${supabaseUrl}/rest/v1/bookings?id=eq.${id}`, {
       method: "DELETE",
       headers: {
         apikey: supabaseKey,
-        Authorization: Bearer ${supabaseKey},
+        Authorization: `Bearer ${supabaseKey}`,
         "Content-Type": "application/json",
         Prefer: "return=minimal",
       },
     })
 
-    if (!deleteRes.ok) return res.status(500).json({ message: "Failed to cancel booking" })
+    if (!deleteRes.ok) {
+      const detail = await deleteRes.text()
+      return res.status(500).json({ message: "Failed to cancel booking", detail })
+    }
 
     return res.status(200).json({ message: "Cancelled" })
   }
