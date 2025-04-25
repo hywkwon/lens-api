@@ -22,6 +22,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const { method } = req
 
+  // 예약 생성
   if (method === "POST") {
     const { user_name, email, phone, store_id, visit_date, visit_time, request_note } = req.body
 
@@ -49,6 +50,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(500).json({ message: "Failed to insert booking", detail: data })
     }
 
+    // Google Sheets로 전송
     try {
       const sheetRes = await fetch("https://script.google.com/macros/s/AKfycbyQtVuRpPasZiHKG-8ZSOqQbglFNqW1nb2tLDXWd2Ym3DtElXbGQcdub9jNkFK8uz4KHA/exec", {
         method: "POST",
@@ -64,6 +66,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(200).json({ success: true, data })
   }
 
+  // 예약 조회
   if (method === "GET") {
     const email = req.query.email as string
     if (!email) return res.status(400).json({ message: "Email is required" })
@@ -84,11 +87,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(200).json({ data })
   }
 
+  // 예약 취소
   if (method === "DELETE") {
     const { id } = req.body
     if (!id) return res.status(400).json({ message: "ID is required" })
 
-    const deleteRes = await fetch(`${supabaseUrl}/rest/v1/bookings?id=eq."${id}"`, {
+    const encodedId = encodeURIComponent(`"${id}"`) // 따옴표 포함 후 인코딩
+
+    const deleteRes = await fetch(`${supabaseUrl}/rest/v1/bookings?id=eq.${encodedId}`, {
       method: "DELETE",
       headers: {
         apikey: supabaseKey,
