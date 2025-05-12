@@ -87,6 +87,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   // 예약 취소
   if (method === "DELETE") {
+    console.log("📥 DELETE method triggered")  // ← 이 줄 추가!
     const { id } = req.body
     if (!id) return res.status(400).json({ message: "ID is required" })
 
