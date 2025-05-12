@@ -101,6 +101,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     })
 
     const detail = await deleteRes.text()
+    console.log("🧾 Supabase DELETE response:", detail) // ← 이거 꼭 넣기
 
     if (!deleteRes.ok) {
       console.error("❌ Supabase DELETE failed:", detail)
