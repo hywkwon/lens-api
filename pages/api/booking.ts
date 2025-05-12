@@ -1,4 +1,5 @@
 // 📁 pages/api/booking.ts
+console.log("Vercel API rebuild test") // ✅ 이 줄만 추가
 import { NextApiRequest, NextApiResponse } from "next"
 
 export const config = {
