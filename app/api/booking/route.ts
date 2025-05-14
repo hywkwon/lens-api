@@ -1,119 +1,116 @@
+// app/api/booking/route.ts
 
-// 📁 pages/api/booking.ts
-console.log("Vercel API rebuild test") // ✅ 이 줄만 추가
-import { NextApiRequest, NextApiResponse } from "next"
+import { NextResponse } from 'next/server';
 
-export const config = {
-  api: {
-    bodyParser: true,
-    externalResolver: true,
-  },
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+const sheetWebhook = "https://script.google.com/macros/s/AKfycbyQtVuRpPasZiHKG-8ZSOqQbglFNqW1nb2tLDXWd2Ym3DtElXbGQcdub9jNkFK8uz4KHA/exec";
+
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 200,
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    },
+  });
 }
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+export async function POST(req: Request) {
+  const body = await req.json();
+  const { user_name, email, phone, store_id, visit_date, visit_time, request_note } = body;
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  res.setHeader("Access-Control-Allow-Origin", "*")
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization")
-
-  if (req.method === "OPTIONS") {
-    return res.status(200).end()
+  if (!user_name || !email || !phone || !store_id || !visit_date || !visit_time) {
+    return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
 
-  const { method } = req
+  const insertRes = await fetch(`${supabaseUrl}/rest/v1/bookings`, {
+    method: "POST",
+    headers: {
+      apikey: supabaseKey,
+      Authorization: `Bearer ${supabaseKey}`,
+      "Content-Type": "application/json",
+      Prefer: "return=representation",
+    },
+    body: JSON.stringify([
+      { user_name, email, phone, store_id, visit_date, visit_time, request_note },
+    ]),
+  });
 
-  // 예약 생성
-  if (method === "POST") {
-    const { user_name, email, phone, store_id, visit_date, visit_time, request_note } = req.body
+  const data = await insertRes.json();
 
-    if (!user_name || !email || !phone || !store_id || !visit_date || !visit_time) {
-      return res.status(400).json({ error: "Missing required fields" })
-    }
+  if (!insertRes.ok) {
+    console.error("❌ Failed to insert booking:", data);
+    return NextResponse.json({ message: "Failed to insert booking", detail: data }, { status: 500 });
+  }
 
-    const insertRes = await fetch(`${supabaseUrl}/rest/v1/bookings`, {
+  try {
+    await fetch(sheetWebhook, {
       method: "POST",
-      headers: {
-        apikey: supabaseKey,
-        Authorization: `Bearer ${supabaseKey}`,
-        "Content-Type": "application/json",
-        Prefer: "return=representation",
-      },
-      body: JSON.stringify([
-        { user_name, email, phone, store_id, visit_date, visit_time, request_note },
-      ]),
-    })
-
-    const data = await insertRes.json()
-
-    if (!insertRes.ok) {
-      console.error("❌ Failed to insert booking:", data)
-      return res.status(500).json({ message: "Failed to insert booking", detail: data })
-    }
-
-    // Google Sheets로 전송
-    try {
-      await fetch("https://script.google.com/macros/s/AKfycbyQtVuRpPasZiHKG-8ZSOqQbglFNqW1nb2tLDXWd2Ym3DtElXbGQcdub9jNkFK8uz4KHA/exec", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user_name, email, phone, visit_date, visit_time, request_note, store_id }),
-      })
-    } catch (err) {
-      console.error("❌ Google Sheets 전송 실패:", err)
-    }
-
-    return res.status(200).json({ success: true, data })
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ user_name, email, phone, visit_date, visit_time, request_note, store_id }),
+    });
+  } catch (err) {
+    console.error("❌ Google Sheets 전송 실패:", err);
   }
 
-  // 예약 조회
-  if (method === "GET") {
-    const email = req.query.email as string
-    if (!email) return res.status(400).json({ message: "Email is required" })
+  return NextResponse.json({ success: true, data });
+}
 
-    const fetchRes = await fetch(`${supabaseUrl}/rest/v1/bookings?email=eq.${email}`, {
-      headers: {
-        apikey: supabaseKey,
-        Authorization: `Bearer ${supabaseKey}`,
-      },
-    })
+export async function GET(req: Request) {
+  const { searchParams } = new URL(req.url);
+  const email = searchParams.get("email");
 
-    const data = await fetchRes.json()
-    if (!fetchRes.ok) {
-      console.error("❌ Failed to fetch bookings:", data)
-      return res.status(500).json({ message: "Failed to fetch bookings" })
-    }
-
-    return res.status(200).json({ data })
+  if (!email) {
+    return NextResponse.json({ message: "Email is required" }, { status: 400 });
   }
 
-  // 예약 취소
-  if (method === "DELETE") {
-    console.log("📥 DELETE method triggered")  // ← 이 줄 추가!
-    const { id } = req.body
-    if (!id) return res.status(400).json({ message: "ID is required" })
+  const fetchRes = await fetch(`${supabaseUrl}/rest/v1/bookings?email=eq.${email}`, {
+    headers: {
+      apikey: supabaseKey,
+      Authorization: `Bearer ${supabaseKey}`,
+    },
+  });
 
-    const deleteRes = await fetch(`${supabaseUrl}/rest/v1/bookings?id=eq.${id}`, {
-      method: "DELETE",
-      headers: {
-        apikey: supabaseKey,
-        Authorization: `Bearer ${supabaseKey}`,
-        "Content-Type": "application/json",
-        Prefer: "return=minimal",
-      },
-    })
+  const data = await fetchRes.json();
 
-    const detail = await deleteRes.text()
-    console.log("🧾 Supabase DELETE response:", detail) // ← 이거 꼭 넣기
-
-    if (!deleteRes.ok) {
-      console.error("❌ Supabase DELETE failed:", detail)
-      return res.status(500).json({ message: "Failed to cancel booking", detail })
-    }
-
-    console.log("✅ Supabase DELETE success for ID:", id)
-    return res.status(200).json({ message: "Cancelled" })
+  if (!fetchRes.ok) {
+    console.error("❌ Failed to fetch bookings:", data);
+    return NextResponse.json({ message: "Failed to fetch bookings" }, { status: 500 });
   }
 
-  return res.status(405).json({ message: "Method Not Allowed" })
+  return NextResponse.json({ data });
+}
+
+export async function DELETE(req: Request) {
+  console.log("📥 DELETE method triggered");
+
+  const body = await req.json();
+  const { id } = body;
+
+  if (!id) {
+    return NextResponse.json({ message: "ID is required" }, { status: 400 });
+  }
+
+  const deleteRes = await fetch(`${supabaseUrl}/rest/v1/bookings?id=eq.${id}`, {
+    method: "DELETE",
+    headers: {
+      apikey: supabaseKey,
+      Authorization: `Bearer ${supabaseKey}`,
+      "Content-Type": "application/json",
+      Prefer: "return=minimal",
+    },
+  });
+
+  const detail = await deleteRes.text();
+  console.log("🧾 Supabase DELETE response:", detail);
+
+  if (!deleteRes.ok) {
+    console.error("❌ Supabase DELETE failed:", detail);
+    return NextResponse.json({ message: "Failed to cancel booking", detail }, { status: 500 });
+  }
+
+  console.log("✅ Supabase DELETE success for ID:", id);
+  return NextResponse.json({ message: "Cancelled" });
 }
