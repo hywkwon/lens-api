@@ -1,26 +1,18 @@
-import NextAuth from "next-auth";
-import GoogleProvider from "next-auth/providers/google";
+// 파일 경로: app/api/[...nextauth]/route.ts
 
-// NextAuth.js 설정
-export const authOptions = {
+import NextAuth from "next-auth"; // NextAuth.js를 가져옴
+import GoogleProvider from "next-auth/providers/google"; // 구글 로그인 제공자 사용
+
+// 구글 로그인 설정
+const authOptions = {
   providers: [
     GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID,  // Vercel에 설정한 구글 클라이언트 ID
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,  // Vercel에 설정한 구글 클라이언트 시크릿
+      clientId: process.env.GOOGLE_CLIENT_ID, // 구글 클라이언트 ID
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET, // 구글 클라이언트 시크릿
     }),
   ],
-  callbacks: {
-    async jwt({ token, account }) {
-      if (account) {
-        token.accessToken = account.access_token;  // 로그인 후 액세스 토큰 저장
-      }
-      return token;
-    },
-    async session({ session, token }) {
-      session.accessToken = token.accessToken;  // 세션에 액세스 토큰 추가
-      return session;
-    },
-  },
+  // 추가적인 설정을 여기에 작성할 수 있습니다.
 };
 
+// NextAuth.js를 설정하고, authOptions을 전달함
 export default NextAuth(authOptions);
